@@ -1,0 +1,20 @@
+{
+  "service": "CRM",
+  "name": "Stage History Timeline View",
+  "version": "1.0",
+  "platform_version": "1.0",
+  "storage": true,
+  "modules": {
+    "widgets": [
+      {
+        "location": "crm.relatedlist",
+        "url": "app/timeline/index.html",
+        "module": "Deals"
+      },
+      {
+        "location": "crm.settings",
+        "url": "app/settings/index.html"
+      }
+    ]
+  }
+}

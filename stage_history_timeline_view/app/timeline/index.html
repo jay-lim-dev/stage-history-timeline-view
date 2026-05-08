@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Stage History</title>
+    <link rel="stylesheet" href="css/timeline.css" />
+  </head>
+  <body>
+
+    <div id="app">
+      <div id="state-loading" class="state">
+        <p class="loading-text">Loading stage history…</p>
+      </div>
+
+      <div id="state-error" class="state hidden">
+        <p class="error-text">Unable to load stage history.</p>
+      </div>
+
+      <div id="state-empty" class="state hidden">
+        <p class="empty-text">No stage changes recorded yet.</p>
+      </div>
+
+      <div id="state-timeline" class="state hidden">
+        <ol id="timeline-list" class="timeline"></ol>
+      </div>
+    </div>
+
+    <script src="https://live.zwidgets.com/js-sdk/1.0/ZohoEmbededAppSDK.min.js"></script>
+    <script src="js/timeline.js"></script>
+
+  </body>
+</html>
