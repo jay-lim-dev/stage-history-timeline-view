@@ -8,6 +8,7 @@
     <p style="font-family:monospace;padding:12px">Open the browser console to see the raw API responses.</p>
 
     <script src="https://live.zwidgets.com/js-sdk/1.0/ZohoEmbededAppSDK.min.js"></script>
+    <script src="app.js"></script>
     <script>
       ZOHO.embeddedApp.on("PageLoad", function (context) {
         console.log("=== PageLoad context ===");
@@ -15,17 +16,42 @@
 
         var recordId = context.EntityId;
 
-        console.log("=== getRelatedRecords: Stage_History for Deal", recordId, "===");
-        ZOHO.CRM.API.getRelatedRecords({
+        var historyPromise = ZOHO.CRM.API.getRelatedRecords({
           Entity: "Deals",
           RecordID: recordId,
           RelatedList: "Stage_History",
           page: 1,
           per_page: 200
-        }).then(function (response) {
-          console.log("=== Stage_History response ===");
-          console.log(response);
         });
+
+        var cachePromise = StageCache.init();
+
+        Promise.all([cachePromise, historyPromise])
+          .then(function (results) {
+            var map      = results[0];
+            var response = results[1];
+            var records  = (response && response.data) || [];
+
+            console.log("=== StageCache map ===");
+            console.table(Object.keys(map).map(function (id) {
+              return { id: id, stage: map[id] };
+            }));
+
+            var stageIds = records.map(function (r) { return r.Stage; });
+
+            console.log("=== Stage IDs from Stage_History ===");
+            console.log(stageIds);
+
+            return StageCache.getStageNames(stageIds).then(function (names) {
+              console.log("=== getStageNames() result ===");
+              stageIds.forEach(function (id, i) {
+                console.log(id, "→", names[i]);
+              });
+            });
+          })
+          .catch(function (err) {
+            console.error("=== Verification failed ===", err);
+          });
       });
 
       ZOHO.embeddedApp.init();
