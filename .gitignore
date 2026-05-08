@@ -1,0 +1,12 @@
+# Dependencies
+node_modules/
+
+# ZET build output
+dist/
+
+# ZET local dev server certs
+cert.pem
+key.pem
+
+# macOS
+.DS_Store
