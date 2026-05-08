@@ -155,3 +155,89 @@ var StageCache = (function () {
 
   return { init: init, getStageNames: getStageNames };
 })();
+
+
+// ── Duration formatter ───────────────────────────────────────────────────────
+
+function formatDuration(ms) {
+  if (ms < 0) ms = 0;
+  var seconds = Math.floor(ms / 1000);
+  var minutes = Math.floor(ms / (1000 * 60));
+  var hours   = Math.floor(ms / (1000 * 60 * 60));
+  var days    = Math.floor(ms / (1000 * 60 * 60 * 24));
+  var weeks   = Math.floor(ms / (1000 * 60 * 60 * 24 * 7));
+  var months  = Math.floor(ms / (1000 * 60 * 60 * 24 * 30));
+  var years   = Math.floor(ms / (1000 * 60 * 60 * 24 * 365));
+
+  function unit(n, label) {
+    return n + ' ' + label + (n === 1 ? '' : 's');
+  }
+
+  if (seconds < 60)  return unit(seconds, 'second');
+  if (minutes < 60)  return unit(minutes, 'minute');
+  if (hours   < 24)  return unit(hours,   'hour');
+  if (days    < 7)   return unit(days,    'day');
+  if (weeks   < 30)  return unit(weeks,   'week');
+  if (months  < 12)  return unit(months,  'month');
+  return unit(years, 'year');
+}
+
+
+// ── Data layer ───────────────────────────────────────────────────────────────
+
+function buildTimelineData(recordId, settings) {
+  var historyPromise = ZOHO.CRM.API.getRelatedRecords({
+    Entity:      'Deals',
+    RecordID:    recordId,
+    RelatedList: 'Stage_History',
+    page:        1,
+    per_page:    200
+  });
+
+  var probabilityPromise = (settings && settings.showProbabilityBar)
+    ? ZOHO.CRM.API.getRecord({ Entity: 'Deals', RecordID: recordId })
+    : Promise.resolve(null);
+
+  return Promise.all([StageCache.init(), historyPromise, probabilityPromise])
+    .then(function (results) {
+      var records     = (results[1] && results[1].data) || [];
+      var dealRecord  = results[2] && results[2].data && results[2].data[0];
+
+      // Edge case: empty Stage_History response.
+      if (records.length === 0) {
+        return { stages: [], currentProbability: null };
+      }
+
+      var stageIds = records.map(function (r) { return r.Stage; });
+
+      return StageCache.getStageNames(stageIds).then(function (names) {
+        var now    = Date.now();
+        var stages = records.map(function (record, i) {
+          var enteredAt  = new Date(record.Last_Modified_Time);
+          var isCurrent  = i === 0;
+
+          // Duration: time between this stage's entry and the next (more recent) row's entry.
+          // records are newest-first, so the row above (i - 1) entered after this one.
+          var durationMs = isCurrent
+            ? now - enteredAt.getTime()                                          // elapsed
+            : new Date(records[i - 1].Last_Modified_Time).getTime() - enteredAt.getTime(); // fixed
+
+          return {
+            name:       names[i] || 'Unknown Stage',
+            enteredAt:  enteredAt,
+            durationMs: isCurrent ? null    : durationMs,
+            elapsedMs:  isCurrent ? durationMs : null,
+            modifiedBy: (record.modified_by && record.modified_by.name) || '',
+            probability: record.probability,
+            isCurrent:  isCurrent
+          };
+        });
+
+        var currentProbability = dealRecord
+          ? (dealRecord.Probability !== undefined ? dealRecord.Probability : null)
+          : null;
+
+        return { stages: stages, currentProbability: currentProbability };
+      });
+    });
+}

@@ -39,9 +39,6 @@
 
             var stageIds = records.map(function (r) { return r.Stage; });
 
-            console.log("=== Stage IDs from Stage_History ===");
-            console.log(stageIds);
-
             return StageCache.getStageNames(stageIds).then(function (names) {
               console.log("=== getStageNames() result ===");
               stageIds.forEach(function (id, i) {
@@ -51,6 +48,25 @@
           })
           .catch(function (err) {
             console.error("=== Verification failed ===", err);
+          });
+
+        console.log("=== buildTimelineData ===");
+        buildTimelineData(recordId, { showProbabilityBar: false })
+          .then(function (result) {
+            console.log("stages:", result.stages.length);
+            result.stages.forEach(function (s, i) {
+              console.log(
+                i === 0 ? "[CURRENT]" : "[PAST   ]",
+                s.name,
+                "| entered:", s.enteredAt.toLocaleString(),
+                "| " + (s.isCurrent ? "elapsed: " + formatDuration(s.elapsedMs) : "duration: " + formatDuration(s.durationMs)),
+                "| by:", s.modifiedBy,
+                "| prob:", s.probability + "%"
+              );
+            });
+          })
+          .catch(function (err) {
+            console.error("=== buildTimelineData failed ===", err);
           });
       });
 
