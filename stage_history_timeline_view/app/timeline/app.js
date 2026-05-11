@@ -158,8 +158,8 @@ var StageCache = (function () {
 
 
 // ── Settings loader ──────────────────────────────────────────────────────────
-
-var SETTINGS_KEY = 'extension_settings';
+// Reads from localStorage using the same key format as settings.js so both
+// widgets stay in sync: sht_settings_{userId}
 
 var SETTINGS_DEFAULTS = {
   showProbabilityBar: false,
@@ -168,22 +168,34 @@ var SETTINGS_DEFAULTS = {
   showModifiedBy:     true
 };
 
-function loadSettings() {
-  var available = !!(ZOHO.CRM && ZOHO.CRM.WIDGET && ZOHO.CRM.WIDGET.STORE);
-  if (!available) return Promise.resolve(SETTINGS_DEFAULTS);
+var _settingsKey = null;
 
-  return Promise.resolve(ZOHO.CRM.WIDGET.STORE.get({ key: SETTINGS_KEY }))
-    .then(function (res) {
-      var raw = res && (res.value || res.Value);
-      if (!raw) return SETTINGS_DEFAULTS;
-      try {
-        var stored = JSON.parse(raw);
-        return Object.assign({}, SETTINGS_DEFAULTS, stored);
-      } catch (e) {
-        return SETTINGS_DEFAULTS;
-      }
+function getSettingsKey() {
+  if (_settingsKey) return Promise.resolve(_settingsKey);
+  return ZOHO.CRM.CONFIG.getCurrentUser()
+    .then(function (data) {
+      var userId = (data && data.id) || 'default';
+      _settingsKey = 'sht_settings_' + userId;
+      return _settingsKey;
     })
-    .catch(function () { return SETTINGS_DEFAULTS; });
+    .catch(function () {
+      _settingsKey = 'sht_settings_default';
+      return _settingsKey;
+    });
+}
+
+function loadSettings() {
+  return getSettingsKey().then(function (key) {
+    var raw = localStorage.getItem(key);
+    if (!raw) return Object.assign({}, SETTINGS_DEFAULTS);
+    try {
+      return Object.assign({}, SETTINGS_DEFAULTS, JSON.parse(raw));
+    } catch (e) {
+      return Object.assign({}, SETTINGS_DEFAULTS);
+    }
+  }).catch(function () {
+    return Object.assign({}, SETTINGS_DEFAULTS);
+  });
 }
 
 

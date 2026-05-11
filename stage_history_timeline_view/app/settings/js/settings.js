@@ -1,7 +1,5 @@
 'use strict';
 
-var STORAGE_KEY = 'extension_settings';
-
 var DEFAULTS = {
   showProbabilityBar: false,
   defaultRowsShown:   5,
@@ -9,29 +7,39 @@ var DEFAULTS = {
   showModifiedBy:     true
 };
 
-// ── Storage helpers ───────────────────────────────────────────────────────────
+// ── Storage helpers (localStorage namespaced by user ID) ─────────────────────
+// ZOHO.CRM.WIDGET.STORE is not implemented in the CRM SDK — localStorage is
+// the reliable alternative. Namespaced by user ID so different org installs
+// on the same browser don't share state.
 
-function storageAvailable() {
-  return !!(ZOHO.CRM && ZOHO.CRM.WIDGET && ZOHO.CRM.WIDGET.STORE);
+var _storageKey = null;
+
+function getStorageKey() {
+  if (_storageKey) return Promise.resolve(_storageKey);
+  return ZOHO.CRM.CONFIG.getCurrentUser()
+    .then(function (data) {
+      var userId = (data && data.id) || 'default';
+      _storageKey = 'sht_settings_' + userId;
+      return _storageKey;
+    })
+    .catch(function () {
+      _storageKey = 'sht_settings_default';
+      return _storageKey;
+    });
 }
 
 function loadFromStorage() {
-  if (!storageAvailable()) return Promise.resolve(null);
-  return Promise.resolve(ZOHO.CRM.WIDGET.STORE.get({ key: STORAGE_KEY }))
-    .then(function (res) {
-      var raw = res && (res.value || res.Value);
-      if (!raw) return null;
-      try { return JSON.parse(raw); } catch (e) { return null; }
-    })
-    .catch(function () { return null; });
+  return getStorageKey().then(function (key) {
+    var raw = localStorage.getItem(key);
+    if (!raw) return null;
+    try { return JSON.parse(raw); } catch (e) { return null; }
+  });
 }
 
 function saveToStorage(data) {
-  if (!storageAvailable()) return Promise.reject(new Error('Extension storage is not available in this context.'));
-  return Promise.resolve(ZOHO.CRM.WIDGET.STORE.set({
-    key:   STORAGE_KEY,
-    value: JSON.stringify(data)
-  }));
+  return getStorageKey().then(function (key) {
+    localStorage.setItem(key, JSON.stringify(data));
+  });
 }
 
 // ── Render ────────────────────────────────────────────────────────────────────
