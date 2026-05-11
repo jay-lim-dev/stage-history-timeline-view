@@ -1,67 +1,16 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  font-size: 13px;
-  color: #2d3748;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   background: #fff;
-  padding: 16px;
+  margin: 0;
+  padding: 0;
 }
 
-.state { display: block; }
-.state.hidden { display: none; }
-
-.loading-text,
-.error-text,
-.empty-text {
-  color: #718096;
-  text-align: center;
-  padding: 32px 0;
+@keyframes sht-ping {
+  75%, 100% { transform: scale(2); opacity: 0; }
 }
 
-.error-text { color: #e53e3e; }
-
-.timeline {
-  list-style: none;
-  position: relative;
-  padding-left: 24px;
-}
-
-.timeline::before {
-  content: "";
-  position: absolute;
-  left: 7px;
-  top: 6px;
-  bottom: 6px;
-  width: 2px;
-  background: #e2e8f0;
-}
-
-.timeline-item {
-  position: relative;
-  padding-bottom: 20px;
-}
-
-.timeline-item:last-child { padding-bottom: 0; }
-
-.timeline-dot {
-  position: absolute;
-  left: -21px;
-  top: 4px;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: #3182ce;
-  border: 2px solid #fff;
-  box-shadow: 0 0 0 2px #3182ce;
-}
-
-.timeline-stage {
-  font-weight: 600;
-  color: #1a202c;
-}
-
-.timeline-meta {
-  color: #718096;
-  margin-top: 2px;
+.sht-ping {
+  animation: sht-ping 1s cubic-bezier(0, 0, 0.2, 1) infinite;
 }

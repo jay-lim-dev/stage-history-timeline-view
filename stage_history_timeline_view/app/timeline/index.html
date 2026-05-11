@@ -2,75 +2,71 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>Stage History — Diagnostic</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Stage History</title>
+    <link rel="stylesheet" href="css/timeline.css" />
   </head>
   <body>
-    <p style="font-family:monospace;padding:12px">Open the browser console to see the raw API responses.</p>
+
+    <div id="app"></div>
 
     <script src="https://live.zwidgets.com/js-sdk/1.0/ZohoEmbededAppSDK.min.js"></script>
     <script src="app.js"></script>
     <script>
       ZOHO.embeddedApp.on("PageLoad", function (context) {
-        console.log("=== PageLoad context ===");
-        console.log(context);
+        var app = document.getElementById("app");
 
-        var recordId = context.EntityId;
+        // Default settings — will be replaced by Settings widget in Phase 6.
+        var settings = {
+          showProbabilityBar: true,
+          defaultRowsShown:   5,
+          showDuration:       true,
+          showModifiedBy:     true
+        };
 
-        var historyPromise = ZOHO.CRM.API.getRelatedRecords({
-          Entity: "Deals",
-          RecordID: recordId,
-          RelatedList: "Stage_History",
-          page: 1,
-          per_page: 200
-        });
+        app.innerHTML =
+          '<div style="padding:32px;text-align:center;font-family:Inter,sans-serif;color:#9CA3AF;font-size:13px">' +
+          'Loading stage history…</div>';
 
-        var cachePromise = StageCache.init();
+        buildTimelineData(context.EntityId, settings)
+          .then(function (data) {
+            if (data.stages.length === 0) {
+              app.innerHTML =
+                '<div style="padding:32px;text-align:center;font-family:Inter,sans-serif;color:#9CA3AF;font-size:13px">' +
+                'No stage history found for this deal.</div>';
+              return;
+            }
 
-        Promise.all([cachePromise, historyPromise])
-          .then(function (results) {
-            var map      = results[0];
-            var response = results[1];
-            var records  = (response && response.data) || [];
+            renderTimeline(app, data.stages, settings);
 
-            console.log("=== StageCache map ===");
-            console.table(Object.keys(map).map(function (id) {
-              return { id: id, stage: map[id] };
-            }));
-
-            var stageIds = records.map(function (r) { return r.Stage; });
-
-            return StageCache.getStageNames(stageIds).then(function (names) {
-              console.log("=== getStageNames() result ===");
-              stageIds.forEach(function (id, i) {
-                console.log(id, "→", names[i]);
-              });
-            });
+            if (settings.showProbabilityBar && data.currentProbability !== null) {
+              var probBar = app.querySelector("#sht-prob-bar");
+              if (probBar) {
+                renderProbabilityBar(probBar, data.currentProbability, data.stages[0].name);
+              }
+            }
           })
           .catch(function (err) {
-            console.error("=== Verification failed ===", err);
-          });
-
-        console.log("=== buildTimelineData ===");
-        buildTimelineData(recordId, { showProbabilityBar: false })
-          .then(function (result) {
-            console.log("stages:", result.stages.length);
-            result.stages.forEach(function (s, i) {
-              console.log(
-                i === 0 ? "[CURRENT]" : "[PAST   ]",
-                s.name,
-                "| entered:", s.enteredAt.toLocaleString(),
-                "| " + (s.isCurrent ? "elapsed: " + formatDuration(s.elapsedMs) : "duration: " + formatDuration(s.durationMs)),
-                "| by:", s.modifiedBy,
-                "| prob:", s.probability + "%"
-              );
+            console.error("[Timeline] Failed to load stage history:", err);
+            app.innerHTML =
+              '<div style="padding:20px;font-family:Inter,sans-serif">' +
+                '<div style="border:1px solid #FEE2E2;background:#FFF5F5;border-radius:8px;padding:16px;display:flex;align-items:flex-start;gap:12px">' +
+                  '<span style="font-size:18px;line-height:1">⚠️</span>' +
+                  '<div>' +
+                    '<div style="font-size:13px;font-weight:600;color:#991B1B;margin-bottom:4px">Could not load stage history</div>' +
+                    '<div style="font-size:12px;color:#B91C1C;margin-bottom:12px">' + (err && err.message ? err.message : 'An unexpected error occurred.') + '</div>' +
+                    '<button id="retry-btn" style="font-size:12px;font-weight:500;color:#1D4ED8;background:none;border:none;cursor:pointer;padding:0;text-decoration:underline">Retry</button>' +
+                  '</div>' +
+                '</div>' +
+              '</div>';
+            document.getElementById("retry-btn").addEventListener("click", function () {
+              location.reload();
             });
-          })
-          .catch(function (err) {
-            console.error("=== buildTimelineData failed ===", err);
           });
       });
 
       ZOHO.embeddedApp.init();
     </script>
+
   </body>
 </html>
