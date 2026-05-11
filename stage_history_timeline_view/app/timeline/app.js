@@ -420,8 +420,10 @@ function renderTimeline(container, stages, settings) {
       '</div>'
     : '';
 
+  var topPad = showProbCol ? '12px' : '24px';
+
   container.innerHTML =
-    '<div style="background:white;padding:12px 32px 24px;font-family:Inter,sans-serif">' +
+    '<div style="background:white;padding:' + topPad + ' 32px 24px;font-family:Inter,sans-serif">' +
       '<div id="sht-prob-bar"></div>' +
       '<div style="position:relative">' +
         '<div style="position:absolute;top:0;bottom:0;left:22px;width:2px;background:#E5E7EB" aria-hidden="true"></div>' +
