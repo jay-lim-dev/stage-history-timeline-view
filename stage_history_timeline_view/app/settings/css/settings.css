@@ -1,51 +1,190 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  font-size: 13px;
-  color: #2d3748;
-  background: #fff;
-  padding: 24px;
-  max-width: 640px;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 14px;
+  background: #F9FAFB;
+  color: #111827;
+  padding: 32px;
 }
 
-.state { display: block; }
-.state.hidden { display: none; }
+/* ── Page header ─────────────────────────────────────────────────────────── */
 
-.loading-text { color: #718096; }
+.page-header {
+  margin-bottom: 24px;
+}
 
 .page-title {
   font-size: 18px;
   font-weight: 600;
-  margin-bottom: 24px;
-  color: #1a202c;
+  color: #111827;
 }
 
-.form-actions {
-  margin-top: 24px;
+.page-subtitle {
+  font-size: 13px;
+  color: #6B7280;
+  margin-top: 4px;
 }
 
-.btn {
-  padding: 8px 16px;
-  border-radius: 4px;
-  border: none;
+/* ── Card ────────────────────────────────────────────────────────────────── */
+
+.card {
+  background: white;
+  border: 1px solid #E5E7EB;
+  border-radius: 12px;
+  overflow: hidden;
+  max-width: 600px;
+}
+
+/* ── Setting row ─────────────────────────────────────────────────────────── */
+
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 20px 24px;
+  border-bottom: 1px solid #F3F4F6;
+}
+
+.setting-row:last-child {
+  border-bottom: none;
+}
+
+.setting-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #111827;
+}
+
+.setting-description {
+  font-size: 12px;
+  color: #6B7280;
+  margin-top: 3px;
+}
+
+/* ── Toggle switch ───────────────────────────────────────────────────────── */
+
+.toggle {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+.toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  position: absolute;
+}
+
+.toggle-track {
+  position: absolute;
+  inset: 0;
+  background: #D1D5DB;
+  border-radius: 999px;
   cursor: pointer;
+  transition: background 0.2s;
+}
+
+.toggle input:checked + .toggle-track {
+  background: #3B82F6;
+}
+
+.toggle-track::after {
+  content: '';
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  left: 3px;
+  top: 3px;
+  background: white;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+  transition: transform 0.2s;
+}
+
+.toggle input:checked + .toggle-track::after {
+  transform: translateX(20px);
+}
+
+.toggle input:focus-visible + .toggle-track {
+  outline: 2px solid #3B82F6;
+  outline-offset: 2px;
+}
+
+/* ── Number input ────────────────────────────────────────────────────────── */
+
+.number-input {
+  width: 72px;
+  padding: 6px 10px;
+  font-size: 14px;
+  font-family: inherit;
+  color: #111827;
+  border: 1px solid #D1D5DB;
+  border-radius: 6px;
+  text-align: center;
+  outline: none;
+  transition: border-color 0.15s;
+  flex-shrink: 0;
+}
+
+.number-input:focus {
+  border-color: #3B82F6;
+  box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
+}
+
+/* ── Actions ─────────────────────────────────────────────────────────────── */
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 24px;
+  max-width: 600px;
+}
+
+.btn-save {
+  padding: 9px 24px;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: inherit;
+  color: white;
+  background: #3B82F6;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.btn-save:hover  { background: #2563EB; }
+.btn-save:active { background: #1D4ED8; }
+
+.btn-save:disabled {
+  background: #93C5FD;
+  cursor: not-allowed;
+}
+
+/* ── Feedback ────────────────────────────────────────────────────────────── */
+
+.feedback {
   font-size: 13px;
   font-weight: 500;
 }
 
-.btn-primary {
-  background: #3182ce;
-  color: #fff;
+.feedback--success { color: #16A34A; }
+.feedback--error   { color: #DC2626; }
+
+/* ── Loading / error states ──────────────────────────────────────────────── */
+
+.state-loading,
+.state-error {
+  padding: 48px 0;
+  text-align: center;
+  font-size: 14px;
+  color: #9CA3AF;
 }
 
-.btn-primary:hover { background: #2b6cb0; }
-
-.feedback {
-  margin-top: 12px;
-  font-size: 13px;
-}
-
-.feedback.hidden { display: none; }
-.feedback.success { color: #38a169; }
-.feedback.error { color: #e53e3e; }
+.state-error { color: #DC2626; }
