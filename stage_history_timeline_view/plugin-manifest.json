@@ -7,12 +7,12 @@
   "modules": {
     "widgets": [
       {
-        "location": "crm.relatedlist.view",
+        "location": "crm.relatedlist",
         "url": "app/timeline/index.html",
         "module": "Deals"
       },
       {
-        "location": "crm.extension.settings",
+        "location": "crm.settings",
         "url": "app/settings/index.html"
       }
     ]
