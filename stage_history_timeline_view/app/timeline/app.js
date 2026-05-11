@@ -194,14 +194,9 @@ function buildTimelineData(recordId, settings) {
     per_page:    200
   });
 
-  var probabilityPromise = (settings && settings.showProbabilityBar)
-    ? ZOHO.CRM.API.getRecord({ Entity: 'Deals', RecordID: recordId })
-    : Promise.resolve(null);
-
-  return Promise.all([StageCache.init(), historyPromise, probabilityPromise])
+  return Promise.all([StageCache.init(), historyPromise])
     .then(function (results) {
-      var records     = (results[1] && results[1].data) || [];
-      var dealRecord  = results[2] && results[2].data && results[2].data[0];
+      var records = (results[1] && results[1].data) || [];
 
       // Edge case: empty Stage_History response.
       if (records.length === 0) {
@@ -233,11 +228,189 @@ function buildTimelineData(recordId, settings) {
           };
         });
 
-        var currentProbability = dealRecord
-          ? (dealRecord.Probability !== undefined ? dealRecord.Probability : null)
-          : null;
+        // Probability comes from the current stage's Stage_History record —
+        // no separate Deal record fetch needed.
+        var currentProbability = stages.length > 0 ? stages[0].probability : null;
 
         return { stages: stages, currentProbability: currentProbability };
       });
     });
+}
+
+
+// ── Renderers ────────────────────────────────────────────────────────────────
+
+function formatEnteredAt(date) {
+  var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var h = date.getHours(), m = date.getMinutes();
+  var ampm = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12;
+  return {
+    date: MONTHS[date.getMonth()] + ' ' + date.getDate() + ', ' + date.getFullYear(),
+    time: h + ':' + (m < 10 ? '0' + m : m) + ' ' + ampm
+  };
+}
+
+function renderProbabilityBar(container, value, stageName) {
+  var c = Math.max(0, Math.min(100, value));
+  var color = c <= 20 ? '#EF4444' : c <= 50 ? '#F59E0B' : c <= 79 ? '#3B82F6' : '#22C55E';
+  container.innerHTML =
+    '<div style="padding:10px 0;margin:0 0 24px">' +
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">' +
+        '<span style="font-size:11px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:0.08em">Deal Probability</span>' +
+        '<div style="display:flex;align-items:baseline;gap:8px">' +
+          '<span style="font-size:14px;font-weight:700;color:' + color + '">' + c + '%</span>' +
+          '<span style="font-size:13px;color:#6B7280">' + (stageName || '') + '</span>' +
+        '</div>' +
+      '</div>' +
+      '<div style="position:relative;width:100%;height:6px;background:#E5E7EB;border-radius:999px">' +
+        '<div style="width:' + c + '%;height:100%;background:' + color + ';border-radius:999px"></div>' +
+        '<div style="position:absolute;left:calc(' + c + '% - 7px);top:50%;transform:translateY(-50%);width:14px;height:14px;border-radius:50%;background:' + color + ';box-shadow:0 1px 3px rgba(0,0,0,0.2);display:flex;align-items:center;justify-content:center">' +
+          '<span style="width:6px;height:6px;border-radius:50%;background:white;display:block"></span>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+}
+
+function renderTimeline(container, stages, settings) {
+  var s            = settings || {};
+  var collapsedN   = s.defaultRowsShown || 5;
+  var showDuration = s.showDuration !== false;
+  var showModBy    = s.showModifiedBy !== false;
+  var showProbCol  = !!s.showProbabilityBar;
+  var hasMore      = stages.length > collapsedN;
+  var showDivider  = stages.length >= 18;
+
+  // Row uses flex + space-between so gaps between elements distribute equally
+  // regardless of container width — avoids the 1fr stage-name column consuming
+  // all available space on wide Related List panels.
+
+  function badge(floating) {
+    var pos = floating
+      ? 'position:absolute;left:-6px;top:-14px;z-index:2;'
+      : '';
+    return '<span style="' + pos + 'display:inline-flex;align-items:center;border-radius:999px;' +
+      'background:#3B82F6;color:white;font-size:9px;font-weight:700;' +
+      'letter-spacing:0.08em;padding:2px 7px;' +
+      (floating ? 'box-shadow:0 2px 6px rgba(59,130,246,0.35)' : '') +
+      '">CURRENT</span>';
+  }
+
+  function buildRow(stage, i) {
+    var dt        = formatEnteredAt(stage.enteredAt);
+    var isCurrent = stage.isCurrent;
+    var hidden    = !isCurrent && i >= collapsedN;
+
+    var dot = isCurrent
+      ? '<div style="position:relative;width:20px;height:20px">' +
+          '<span class="sht-ping" style="position:absolute;inset:0;border-radius:50%;background:#3B82F6;opacity:0.4"></span>' +
+          '<span style="position:absolute;left:1px;top:1px;width:18px;height:18px;border-radius:50%;' +
+            'background:#3B82F6;border:3px solid white;box-shadow:0 0 0 2px #3B82F6,0 0 12px rgba(59,130,246,0.6)"></span>' +
+        '</div>'
+      : '<span style="width:18px;height:18px;border-radius:50%;background:white;' +
+          'display:flex;align-items:center;justify-content:center">' +
+          '<span style="width:10px;height:10px;border-radius:50%;background:#9CA3AF;display:block"></span>' +
+        '</span>';
+
+    var durationCell = showDuration
+      ? isCurrent
+        ? '<div style="flex:0 0 100px;text-align:center;font-size:14px;font-style:italic;color:#3B82F6;white-space:nowrap">⏱ ' + formatDuration(stage.elapsedMs) + '</div>'
+        : '<div style="flex:0 0 100px;text-align:center">' +
+            '<span style="display:inline-block;text-align:center;background:#F1F5F9;color:#6B7280;' +
+            'font-size:13px;font-weight:500;padding:2px 10px;border-radius:999px;white-space:nowrap">' +
+            formatDuration(stage.durationMs) + '</span></div>'
+      : '';
+
+    var probCell = showProbCol
+      ? '<div style="flex:0 0 50px;text-align:center;font-size:13px;color:#9CA3AF;white-space:nowrap">' +
+          stage.probability + '%' + '</div>'
+      : '';
+
+    var modByCell = showModBy
+      ? '<div style="flex:0 0 auto;max-width:160px;font-size:14px;font-weight:500;color:#374151;' +
+          'line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" ' +
+          'title="' + (stage.modifiedBy || '') + '">' + (stage.modifiedBy || '') + '</div>'
+      : '';
+
+    var rowPad = isCurrent ? 'padding:14px 20px 14px 0' : 'padding:12px 20px 12px 0';
+    var rowBg  = isCurrent
+      ? 'background:rgba(59,130,246,0.08);border-left:3px solid #3B82F6;border-radius:8px;'
+      : 'border-left:3px solid transparent;';
+
+    var opacity = showDivider && i >= 12 ? ';opacity:0.5' : '';
+
+    return '<div data-row="' + i + '" style="' + (hidden ? 'display:none;' : '') + '">' +
+      '<div style="position:relative' + opacity + '">' +
+        (isCurrent ? badge(true) : '') +
+        '<div style="display:flex;align-items:center;justify-content:space-between;gap:32px;margin-bottom:6px;' + rowBg + rowPad + '">' +
+          '<div style="flex:0 0 40px;display:flex;align-items:center;justify-content:center;overflow:visible">' + dot + '</div>' +
+          '<div style="flex:1 1 0;min-width:0">' +
+            '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">' +
+              '<span style="font-size:15px;font-weight:600;color:#111827;line-height:1.3">' + stage.name + '</span>' +
+              (isCurrent ? badge(false) : '') +
+            '</div>' +
+            '<div style="font-size:13px;color:#6B7280;margin-top:2px">' + dt.date + ' · ' + dt.time + '</div>' +
+          '</div>' +
+          durationCell + probCell + modByCell +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  }
+
+  var rowsHtml = '';
+  stages.forEach(function (stage, i) {
+    if (showDivider && i === 12) {
+      rowsHtml +=
+        '<div data-divider style="display:flex;align-items:center;gap:8px;margin:4px 0;padding-left:40px;' +
+          (hasMore ? 'display:none' : '') + '">' +
+          '<div style="flex:1;border-top:1px dashed #D1D5DB"></div>' +
+          '<span style="font-size:11px;color:#9CA3AF;white-space:nowrap">— earlier history —</span>' +
+          '<div style="flex:1;border-top:1px dashed #D1D5DB"></div>' +
+        '</div>';
+    }
+    rowsHtml += buildRow(stage, i);
+  });
+
+  var toggleHtml = hasMore
+    ? '<div style="padding-left:32px;margin-top:12px">' +
+        '<div style="border-top:1px dashed #D1D5DB;margin-bottom:12px"></div>' +
+        '<div data-toggle role="button" tabindex="0" style="text-align:center;font-size:14px;font-weight:500;color:#3B82F6;cursor:pointer;user-select:none">' +
+          'Show ' + (stages.length - collapsedN) + ' more stage' + (stages.length - collapsedN === 1 ? '' : 's') + ' ↓' +
+        '</div>' +
+      '</div>'
+    : '';
+
+  container.innerHTML =
+    '<div style="background:white;padding:12px 32px 24px;font-family:Inter,sans-serif">' +
+      '<div id="sht-prob-bar"></div>' +
+      '<div style="position:relative">' +
+        '<div style="position:absolute;top:0;bottom:0;left:22px;width:2px;background:#E5E7EB" aria-hidden="true"></div>' +
+        '<div style="position:relative">' + rowsHtml + '</div>' +
+        toggleHtml +
+      '</div>' +
+    '</div>';
+
+  if (hasMore) {
+    var expanded  = false;
+    var toggleBtn = container.querySelector('[data-toggle]');
+    var divider   = container.querySelector('[data-divider]');
+    var hiddenN   = stages.length - collapsedN;
+
+    function setExpanded(val) {
+      expanded = val;
+      container.querySelectorAll('[data-row]').forEach(function (row) {
+        var i = parseInt(row.getAttribute('data-row'), 10);
+        if (i >= collapsedN) row.style.display = val ? '' : 'none';
+      });
+      if (divider) divider.style.display = val ? 'flex' : 'none';
+      toggleBtn.textContent = val
+        ? 'Show less ↑'
+        : 'Show ' + hiddenN + ' more stage' + (hiddenN === 1 ? '' : 's') + ' ↓';
+    }
+
+    toggleBtn.addEventListener('click', function () { setExpanded(!expanded); });
+    toggleBtn.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpanded(!expanded); }
+    });
+  }
 }
