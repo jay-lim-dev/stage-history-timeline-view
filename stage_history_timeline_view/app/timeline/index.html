@@ -21,8 +21,11 @@
           '<div style="padding:32px;text-align:center;font-family:Inter,sans-serif;color:#9CA3AF;font-size:13px">' +
           'Loading stage history…</div>';
 
-        loadSettings().then(function (settings) {
-          return buildTimelineData(recordId, settings).then(function (data) {
+        Promise.all([loadSettings(), buildTimelineData(recordId)])
+          .then(function (results) {
+            var settings = results[0];
+            var data     = results[1];
+
             if (data.stages.length === 0) {
               app.innerHTML =
                 '<div style="padding:32px;text-align:center;font-family:Inter,sans-serif;color:#9CA3AF;font-size:13px">' +
@@ -38,8 +41,7 @@
                 renderProbabilityBar(probBar, data.currentProbability, data.stages[0].name);
               }
             }
-          });
-        })
+          })
           .catch(function (err) {
             console.error("[Timeline] Failed to load stage history:", err);
             app.innerHTML =

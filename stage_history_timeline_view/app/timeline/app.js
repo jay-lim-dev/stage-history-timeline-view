@@ -187,6 +187,17 @@ function loadSettings() {
 }
 
 
+// ── Utilities ────────────────────────────────────────────────────────────────
+
+function escHtml(str) {
+  return String(str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+
 // ── Duration formatter ───────────────────────────────────────────────────────
 
 function formatDuration(ms) {
@@ -215,7 +226,7 @@ function formatDuration(ms) {
 
 // ── Data layer ───────────────────────────────────────────────────────────────
 
-function buildTimelineData(recordId, settings) {
+function buildTimelineData(recordId) {
   var historyPromise = ZOHO.CRM.API.getRelatedRecords({
     Entity:      'Deals',
     RecordID:    recordId,
@@ -353,13 +364,13 @@ function renderTimeline(container, stages, settings) {
 
     var probCell = showProbCol
       ? '<div style="flex:0 0 50px;text-align:center;font-size:13px;color:#9CA3AF;white-space:nowrap">' +
-          stage.probability + '%' + '</div>'
+          (stage.probability !== null && stage.probability !== undefined ? stage.probability : '—') + '%</div>'
       : '';
 
     var modByCell = showModBy
       ? '<div style="flex:0 0 auto;max-width:160px;font-size:14px;font-weight:500;color:#374151;' +
           'line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" ' +
-          'title="' + (stage.modifiedBy || '') + '">' + (stage.modifiedBy || '') + '</div>'
+          'title="' + escHtml(stage.modifiedBy) + '">' + escHtml(stage.modifiedBy) + '</div>'
       : '';
 
     var rowPad = isCurrent ? 'padding:14px 20px 14px 0' : 'padding:12px 20px 12px 0';
@@ -376,7 +387,7 @@ function renderTimeline(container, stages, settings) {
           '<div style="flex:0 0 40px;display:flex;align-items:center;justify-content:center;overflow:visible">' + dot + '</div>' +
           '<div style="flex:1 1 0;min-width:0">' +
             '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">' +
-              '<span style="font-size:15px;font-weight:600;color:#111827;line-height:1.3">' + stage.name + '</span>' +
+              '<span style="font-size:15px;font-weight:600;color:#111827;line-height:1.3">' + escHtml(stage.name) + '</span>' +
               (isCurrent ? badge(false) : '') +
             '</div>' +
             '<div style="font-size:13px;color:#6B7280;margin-top:2px">' + dt.date + ' · ' + dt.time + '</div>' +
@@ -391,8 +402,7 @@ function renderTimeline(container, stages, settings) {
   stages.forEach(function (stage, i) {
     if (showDivider && i === 12) {
       rowsHtml +=
-        '<div data-divider style="display:flex;align-items:center;gap:8px;margin:4px 0;padding-left:40px;' +
-          (hasMore ? 'display:none' : '') + '">' +
+        '<div data-divider style="display:' + (hasMore ? 'none' : 'flex') + ';align-items:center;gap:8px;margin:4px 0;padding-left:40px">' +
           '<div style="flex:1;border-top:1px dashed #D1D5DB"></div>' +
           '<span style="font-size:11px;color:#9CA3AF;white-space:nowrap">— earlier history —</span>' +
           '<div style="flex:1;border-top:1px dashed #D1D5DB"></div>' +
