@@ -271,13 +271,14 @@ function buildTimelineData(recordId) {
             : new Date(records[i - 1].Last_Modified_Time).getTime() - enteredAt.getTime(); // fixed
 
           return {
-            name:       names[i] || 'Unknown Stage',
-            enteredAt:  enteredAt,
-            durationMs: isCurrent ? null    : durationMs,
-            elapsedMs:  isCurrent ? durationMs : null,
-            modifiedBy: (record.modified_by && record.modified_by.name) || '',
+            name:        names[i] || 'Unknown Stage',
+            enteredAt:   enteredAt,
+            enteredAtIso: record.Last_Modified_Time,
+            durationMs:  isCurrent ? null      : durationMs,
+            elapsedMs:   isCurrent ? durationMs : null,
+            modifiedBy:  (record.modified_by && record.modified_by.name) || '',
             probability: record.probability,
-            isCurrent:  isCurrent
+            isCurrent:   isCurrent
           };
         });
 
@@ -293,14 +294,31 @@ function buildTimelineData(recordId) {
 
 // ── Renderers ────────────────────────────────────────────────────────────────
 
-function formatEnteredAt(date) {
+function formatEnteredAt(value) {
   var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  var h = date.getHours(), m = date.getMinutes();
-  var ampm = h >= 12 ? 'PM' : 'AM';
-  h = h % 12 || 12;
+  // Parse directly from the ISO string to preserve the org's timezone offset.
+  // Using getHours() would shift to the browser's local timezone, which differs
+  // from the CRM org timezone and produces incorrect times on client systems.
+  if (typeof value === 'string') {
+    var m = value.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+    if (m) {
+      var h = parseInt(m[4]), min = parseInt(m[5]);
+      var ampm = h >= 12 ? 'PM' : 'AM';
+      h = h % 12 || 12;
+      return {
+        date: MONTHS[parseInt(m[2]) - 1] + ' ' + parseInt(m[3]) + ', ' + m[1],
+        time: h + ':' + (min < 10 ? '0' + min : min) + ' ' + ampm
+      };
+    }
+  }
+  // Fallback for Date objects
+  var d = value instanceof Date ? value : new Date(value);
+  var h2 = d.getHours(), min2 = d.getMinutes();
+  var ampm2 = h2 >= 12 ? 'PM' : 'AM';
+  h2 = h2 % 12 || 12;
   return {
-    date: MONTHS[date.getMonth()] + ' ' + date.getDate() + ', ' + date.getFullYear(),
-    time: h + ':' + (m < 10 ? '0' + m : m) + ' ' + ampm
+    date: MONTHS[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear(),
+    time: h2 + ':' + (min2 < 10 ? '0' + min2 : min2) + ' ' + ampm2
   };
 }
 
@@ -350,7 +368,7 @@ function renderTimeline(container, stages, settings) {
   }
 
   function buildRow(stage, i) {
-    var dt        = formatEnteredAt(stage.enteredAt);
+    var dt        = formatEnteredAt(stage.enteredAtIso || stage.enteredAt);
     var isCurrent = stage.isCurrent;
     var hidden    = !isCurrent && i >= collapsedN;
 
@@ -360,28 +378,30 @@ function renderTimeline(container, stages, settings) {
           '<span style="position:absolute;left:1px;top:1px;width:18px;height:18px;border-radius:50%;' +
             'background:#3B82F6;border:3px solid white;box-shadow:0 0 0 2px #3B82F6,0 0 12px rgba(59,130,246,0.6)"></span>' +
         '</div>'
-      : '<span style="width:18px;height:18px;border-radius:50%;background:white;' +
-          'display:flex;align-items:center;justify-content:center">' +
-          '<span style="width:10px;height:10px;border-radius:50%;background:#9CA3AF;display:block"></span>' +
-        '</span>';
+      : '<span style="width:12px;height:12px;border-radius:50%;background:#94A3B8;display:block"></span>';
+
+    // Grid: dot(40px) | stage(3fr) | duration(1fr) | prob(50px fixed) | name(1fr)
+    // All fr columns grow proportionally so spacing stays balanced at any width.
+    var gridCols = '40px 3fr 1fr 1fr' + (showModBy ? ' 1fr' : '');
+
+    var gridCols = '40px 1fr 140px 120px' + (showModBy ? ' 160px' : '');
 
     var durationCell = showDuration
       ? isCurrent
-        ? '<div style="flex:0 0 100px;text-align:center;font-size:14px;font-style:italic;color:#3B82F6;white-space:nowrap">⏱ ' + formatDuration(stage.elapsedMs) + '</div>'
-        : '<div style="flex:0 0 100px;text-align:center">' +
+        ? '<div style="text-align:center;font-size:14px;font-style:italic;color:#3B82F6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">⏱ ' + formatDuration(stage.elapsedMs) + '</div>'
+        : '<div style="text-align:center">' +
             '<span style="display:inline-block;text-align:center;background:#F1F5F9;color:#6B7280;' +
             'font-size:13px;font-weight:500;padding:2px 10px;border-radius:999px;white-space:nowrap">' +
             formatDuration(stage.durationMs) + '</span></div>'
-      : '';
+      : '<div></div>';
 
-    var probCell = showProbCol
-      ? '<div style="flex:0 0 50px;text-align:center;font-size:13px;color:#9CA3AF;white-space:nowrap">' +
-          (stage.probability !== null && stage.probability !== undefined ? stage.probability : '—') + '%</div>'
-      : '';
+    var probCell = '<div style="text-align:center;font-size:13px;color:#9CA3AF;' +
+      (showProbCol ? '' : 'visibility:hidden') + '">' +
+      (stage.probability !== null && stage.probability !== undefined ? stage.probability : '—') + '%</div>';
 
     var modByCell = showModBy
-      ? '<div style="flex:0 0 auto;max-width:160px;font-size:14px;font-weight:500;color:#374151;' +
-          'line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" ' +
+      ? '<div style="text-align:center;font-size:14px;font-weight:500;color:#374151;' +
+          'white-space:nowrap;overflow:hidden;text-overflow:ellipsis" ' +
           'title="' + escHtml(stage.modifiedBy) + '">' + escHtml(stage.modifiedBy) + '</div>'
       : '';
 
@@ -395,9 +415,9 @@ function renderTimeline(container, stages, settings) {
     return '<div data-row="' + i + '" style="' + (hidden ? 'display:none;' : '') + '">' +
       '<div style="position:relative' + opacity + '">' +
         (isCurrent ? badge(true) : '') +
-        '<div style="display:flex;align-items:center;justify-content:space-between;gap:32px;margin-bottom:6px;' + rowBg + rowPad + '">' +
-          '<div style="flex:0 0 40px;display:flex;align-items:center;justify-content:center;overflow:visible">' + dot + '</div>' +
-          '<div style="flex:1 1 0;min-width:0">' +
+        '<div style="display:grid;align-items:center;grid-template-columns:' + gridCols + ';column-gap:32px;margin-bottom:6px;' + rowBg + rowPad + '">' +
+          '<div style="display:flex;align-items:center;justify-content:center;overflow:visible">' + dot + '</div>' +
+          '<div style="min-width:0">' +
             '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">' +
               '<span style="font-size:15px;font-weight:600;color:#111827;line-height:1.3">' + escHtml(stage.name) + '</span>' +
               (isCurrent ? badge(false) : '') +
@@ -437,8 +457,15 @@ function renderTimeline(container, stages, settings) {
   container.innerHTML =
     '<div style="background:white;padding:' + topPad + ' 32px 24px;font-family:Inter,sans-serif">' +
       '<div id="sht-prob-bar"></div>' +
+      '<div style="display:grid;grid-template-columns:' + ('40px 1fr 140px 120px' + (showModBy ? ' 160px' : '')) + ';column-gap:32px;padding:0 20px 8px 0;margin-bottom:2px">' +
+        '<div></div>' +
+        '<div></div>' +
+        '<div style="text-align:center;font-size:10px;font-weight:600;color:#9CA3AF;letter-spacing:0.06em;text-transform:uppercase">' + (showDuration ? 'Duration' : '') + '</div>' +
+        '<div style="text-align:center;font-size:10px;font-weight:600;color:#9CA3AF;letter-spacing:0.06em;text-transform:uppercase;' + (showProbCol ? '' : 'visibility:hidden') + '">Probability</div>' +
+        (showModBy ? '<div style="text-align:center;font-size:10px;font-weight:600;color:#9CA3AF;letter-spacing:0.06em;text-transform:uppercase">Modified By</div>' : '') +
+      '</div>' +
       '<div style="position:relative">' +
-        '<div style="position:absolute;top:0;bottom:0;left:22px;width:2px;background:#E5E7EB" aria-hidden="true"></div>' +
+        '<div style="position:absolute;top:0;bottom:0;left:22px;width:2px;background:linear-gradient(to bottom,#E5E7EB 60%,transparent 100%)" aria-hidden="true"></div>' +
         '<div style="position:relative">' + rowsHtml + '</div>' +
         toggleHtml +
       '</div>' +

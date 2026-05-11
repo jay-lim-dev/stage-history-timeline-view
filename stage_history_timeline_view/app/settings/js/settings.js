@@ -49,7 +49,6 @@ function renderForm(settings) {
 
   app.innerHTML =
     '<div class="page-header">' +
-      '<div class="page-title">Stage History Timeline</div>' +
       '<div class="page-subtitle">Configure how the timeline displays on Deal records.</div>' +
     '</div>' +
 
