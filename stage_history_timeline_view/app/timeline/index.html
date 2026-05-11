@@ -15,14 +15,21 @@
     <script>
       ZOHO.embeddedApp.on("PageLoad", function (context) {
         var app = document.getElementById("app");
-        var recordId = context.EntityId;
+
+        // Default settings — will be replaced by Settings widget in Phase 6.
+        var settings = {
+          showProbabilityBar: true,
+          defaultRowsShown:   5,
+          showDuration:       true,
+          showModifiedBy:     true
+        };
 
         app.innerHTML =
           '<div style="padding:32px;text-align:center;font-family:Inter,sans-serif;color:#9CA3AF;font-size:13px">' +
           'Loading stage history…</div>';
 
-        loadSettings().then(function (settings) {
-          return buildTimelineData(recordId, settings).then(function (data) {
+        buildTimelineData(context.EntityId, settings)
+          .then(function (data) {
             if (data.stages.length === 0) {
               app.innerHTML =
                 '<div style="padding:32px;text-align:center;font-family:Inter,sans-serif;color:#9CA3AF;font-size:13px">' +
@@ -38,8 +45,7 @@
                 renderProbabilityBar(probBar, data.currentProbability, data.stages[0].name);
               }
             }
-          });
-        })
+          })
           .catch(function (err) {
             console.error("[Timeline] Failed to load stage history:", err);
             app.innerHTML =
